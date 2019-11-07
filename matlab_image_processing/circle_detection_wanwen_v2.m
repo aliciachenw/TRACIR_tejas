@@ -64,10 +64,32 @@ if strcmp(type,'circle')
     else
         ellipse = [];
     end
+    %{
+    %% output the results
+    if ~isempty(ellipse)
+        img_out = binary_image;
+        img_out(round(ellipse.xc),round(ellipse.yc)) = 255; % centroid
+        for pt = 1:size(edge_points,1)
+            img_out(round(edge_points(pt,1)),round(edge_points(pt,2))) = 100; % detected points in img for fitting
+        end
+        for theta = 0:0.01:2*pi % fitted circle
+            a = round(ellipse.xc+ellipse.rad*cos(theta));
+            b = round(ellipse.yc+ellipse.rad*sin(theta));
+            if a > 0 && a<size(img_out,1) && b>0 && b<size(img_out,2)
+                img_out(a,b) = 255;
+            end
+        end
+        figure;
+        montage({binary_image, img_out});
+        pause;
+    end
+    %}
 else 
     if size(edge_points,1)>6
-        ellipse = fit_ellipse(edge_points); % ellipse fitting (doesn't work now)
+        ellipse = fit_ellipse_v3(edge_points); % ellipse fitting (doesn't work now)
     else
         ellipse = [];
     end
+
 end
+

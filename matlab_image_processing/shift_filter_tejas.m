@@ -14,8 +14,6 @@ gauss_sigm=params.gauss_sigm;
 img_base_gauss =imgaussfilt(img_base,gauss_sigm);
 % img_base_gauss =img_base;
 
-
-
 %% shift image and take average
 img_left=uint8(zeros(size(img_base_gauss)));
 img_right=uint8(zeros(size(img_base_gauss)));

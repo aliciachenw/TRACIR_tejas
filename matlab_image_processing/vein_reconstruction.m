@@ -19,11 +19,12 @@ params.half_window = 1;
 
 start_frame = 40;
 %% read files
-data_file = 'datasets/data_14Sep_2_for_presentation';
+data_file = 'datasets/data_14Sep_2';
 
 load('calibration.mat');
 load('usprobe_pose.mat');
-addpath('rvctools/');
+addpath(genpath('rvctools/'));
+addpath('.\TRACIR_wanwen');
 load_probe_position(data_file);
 imageList = dir(strcat(data_file,'/*.jpg'));
 image_frame_origin = uint32([158,37]);
@@ -79,7 +80,8 @@ for i=start_frame: size(imageList,1)
     if ~isempty(circle) 
         if circle.rad < params.max_rad  
             centers = [circle.yc,circle.xc];
-            radii = circle.rad;
+            params.start_point = [circle.xc,circle.yc];
+            radii = circle.rad
             plot_on = 1;
             if plot_on == 1
                 fig2 = figure;
@@ -92,7 +94,7 @@ for i=start_frame: size(imageList,1)
                 pause()
                 close (fig2) ;
             end
-            centers = centers-double(image_frame_origin);
+            centers = centers-double(image_frame_origin)
             contri(count) = i;
             count = count+1;
         end
