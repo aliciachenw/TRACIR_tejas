@@ -24,6 +24,7 @@ cut_height = params.cut_height;
 half_window = params.half_window;
 max_I = max(max(img_base));
 min_I = min(min(img_base));
+mean_I = mean(mean(img_base));
 % mask the non-ultrasound part in the image
 for i = 1:img_width
     for j = 1:img_height
@@ -164,32 +165,15 @@ for st = 1:size(start_points,1)
                 end
             end
         end
-    %{
-    %% output the results
-    if ~isempty(ellipse)
-        img_out = binary_image;
-        img_out(round(ellipse.xc),round(ellipse.yc)) = 255; % centroid
-        for pt = 1:size(edge_points,1)
-            img_out(round(edge_points(pt,1)),round(edge_points(pt,2))) = 100; % detected points in img for fitting
-        end
-        for theta = 0:0.01:2*pi % fitted circle
-            a = round(ellipse.xc+ellipse.rad*cos(theta));
-            b = round(ellipse.yc+ellipse.rad*sin(theta));
-            if a > 0 && a<size(img_out,1) && b>0 && b<size(img_out,2)
-                img_out(a,b) = 255;
-            end
-        end
-        figure;
-        montage({binary_image, img_out});
-        pause;
-    end
-    %}
+
     else 
         if size(edge_points,1)>=6
             ellipse = fit_ellipse_v3(edge_points);
             if ~isempty(ellipse)
                 flag = 1;
                 if ct ~= 1
+                    % check if the ellipse is overlapped with existed
+                    % ellipses
                     for el = 1:length(ellipses)
                         if norm([ellipse.xc - ellipses(el).xc,ellipse.yc - ellipses(el).yc]) < min_rad
                             flag = 0;
@@ -197,30 +181,42 @@ for st = 1:size(start_points,1)
                         end
                     end
                 end
-                if flag == 1 && ellipse.a < 1.5 * max_rad && ellipse.a > 0.5 * min_rad && ...
+                % check whether the ellipse shape is desired
+                shape_flag = 0;
+                if max([ellipse.a/ellipse.b, ellipse.b/ellipse.a]) > 2 && (ellipse.alpha < 10 / 180 * pi || ellipse.alpha > 350 / 180 * pi || (ellipse.alpha > 170/180*pi && ellipse.alpha < 190/180*pi))
+                    shape_flag = 1; % bifurcation ellipse, long main axis but small rotation angle
+                end
+                if max([ellipse.a/ellipse.b, ellipse.b/ellipse.a]) < 1.5
+                    shape_flag = 1; % or the ellipse is similar to a circle
+                end
+                
+                if flag == 1 && shape_flag == 1 && ellipse.a < 1.5 * max_rad && ellipse.a > 0.5 * min_rad && ... % the size of the ellipse
                         ellipse.b < 1.5 * max_rad && ellipse.b > 0.5 * min_rad && ...
-                        max([ellipse.a/ellipse.b, ellipse.b/ellipse.a]) < 2 && ...
-                        ellipse.xc > cut_xmin - max_rad && ellipse.xc < cut_xmin + cut_height + max_rad && ...
+                        max([ellipse.a/ellipse.b, ellipse.b/ellipse.a]) < 2.5 && ... % not to flat
+                        ellipse.xc > cut_xmin - max_rad && ellipse.xc < cut_xmin + cut_height + max_rad && ... % the position of the ellipse
                         ellipse.yc > cut_ymin - max_rad && ellipse.yc < cut_ymin + cut_width + max_rad
-                    % if mean(mean(img_base(ellipse.xc - ellipse.a:ellipse.xc+ellipse.a,ellipse.yc - ellipse.b:ellipse.yc+ellipse.b))) < (max_I + min_I) / 2
-                        
-                        ellipses(ct) = ellipse;
-                        ct = ct + 1;
-                        %{
-                        for ed = 1:size(edge_points,1)
-                            a = edge_points(ed,1);
-                            b = edge_points(ed,2);
-                            label = img_label(a,b);
-                            img_out(img_label == label) = 0;
+                   if mean(mean(img_base(round(ellipse.xc - ellipse.a/2):round(ellipse.xc+ellipse.a/2),round(ellipse.yc - ellipse.b/2):round(ellipse.yc+ellipse.b/2)))) < (max_I + min_I)/2 % the inside of the ellipse should be dark
+                        flag = 0;
+                        if ct > 1
+                            for e = 1:ct - 1
+                                el = ellipses(e);
+                                if norm([el.xc-ellipse.xc,el.yc-ellipse.yc])<max([el.a,el.b,ellipse.a,ellipse.b])
+                                    flag = 1;
+                                    break;
+                                end
+                            end
                         end
-                        %}
-                        for i = 1:length(theta_range)
-                            theta = theta_range(i);
-                            x = ellipse.xc+ellipse.a*cos(theta)*cos(ellipse.alpha)-ellipse.b*sin(theta)*sin(ellipse.alpha);
-                            y = ellipse.yc+ellipse.a*cos(theta)*sin(ellipse.alpha)+ellipse.b*sin(theta)*cos(ellipse.alpha);
-                            img_out(round(x-dr):round(x+dr),round(y-dr):round(y+dr)) = 0;
+                        if flag == 0
+                            ellipses(ct) = ellipse;
+                            ct = ct + 1;
+                            for i = 1:length(theta_range)
+                                theta = theta_range(i);
+                                x = ellipse.xc+ellipse.a*cos(theta)*cos(ellipse.alpha)-ellipse.b*sin(theta)*sin(ellipse.alpha);
+                                y = ellipse.yc+ellipse.a*cos(theta)*sin(ellipse.alpha)+ellipse.b*sin(theta)*cos(ellipse.alpha);
+                                img_out(round(x-dr/2):round(x+dr/2),round(y-dr/2):round(y+dr/2)) = 0;
+                            end
                         end
-                    % end
+                   end
                 end
             end
         end
